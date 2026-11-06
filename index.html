@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="5" fill="%238440f5"/><text x="16" y="24" font-family="Menlo, monospace" font-size="22" font-weight="700" text-anchor="middle" fill="white">1</text></svg>'>
+<title>Daily Integer</title>
+<meta property="og:title" content="Daily Integer">
+<meta property="og:description" content="Guess today's integer in six tries.">
+<meta property="og:type" content="website">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #000000; --panel: #120c1e; --fg: #f4f0ff; --muted: #a99dc0; --line: #33274a; --fill: #1e1533; --key: #261a40; --key-hover: #32234f;
+    --accent: #8440f5; --accent-hover: #9358f7; --on-accent: #ffffff; --accent-text: #b48cff;
+    --toast-bg: #f4f0ff; --toast-fg: #000000; --scrim: rgba(0,0,0,0.7); --shadow: rgba(0,0,0,0.6);
+    --ui: 'Bricolage Grotesque', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --mono: 'DM Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  [hidden] { display: none !important; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { background: var(--bg); color: var(--fg); font-family: var(--ui); font-size: 16px; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; -webkit-appearance: none; appearance: none;
+           -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+  button:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .top { display: grid; grid-template-columns: 1fr auto 1fr; column-gap: 8px; align-items: center; height: 54px; border-bottom: 1px solid var(--line);
+         padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .no { font-family: var(--mono); font-size: 13px; color: var(--muted); }
+  h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.01em; white-space: nowrap; }
+  .tools { display: flex; justify-content: flex-end; align-items: center; gap: 4px; }
+  .icon { width: 36px; height: 36px; margin-right: -6px; display: grid; place-items: center; border-radius: 4px; }
+  .hard { height: 36px; padding: 0 10px; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); font-size: 14px; font-weight: 700; }
+  .hard[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  @media (max-width: 359px) { h1 { font-size: 19px; } .hard { padding: 0 8px; } }
+  .wrap { max-width: 432px; margin: 0 auto; padding-block: 20px 28px;
+          padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .rows { display: grid; gap: 6px; }
+  .row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 12px; min-height: 54px;
+         padding: 6px 14px; border: 2px solid var(--line); border-radius: 4px; font-family: var(--mono); }
+  .row.active { border-color: var(--accent); }
+  .row.filled { background: var(--fill); border-color: var(--fill); }
+  .row.hit { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  .row.land { animation: land 0.16s ease-out; }
+  .row.nudge { animation: nudge 0.24s ease-in-out; }
+  @keyframes land { from { transform: scale(0.97); } }
+  @keyframes nudge { 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+  .row-g { font-size: 22px; font-weight: 500; line-height: 1.15; min-width: 0; overflow-wrap: anywhere; }
+  .row-r { font-size: 15px; line-height: 1.15; color: var(--muted); text-align: right; overflow-wrap: anywhere; }
+  .row.hit .row-r { color: inherit; }
+  .row-g.long { font-size: 14px; }
+  .row-r.long { font-size: 13px; }
+  .row.stack { grid-template-columns: minmax(0, 1fr); row-gap: 2px; }
+  .caret { display: inline-block; width: 2px; height: 1em; vertical-align: -0.12em; background: var(--muted); animation: blink 1s steps(2, start) infinite; }
+  @keyframes blink { to { visibility: hidden; } }
+  .keypad { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-top: 20px; }
+  .key { height: 54px; border-radius: 4px; background: var(--key); font-family: var(--mono); font-size: 20px; font-weight: 500; }
+  .key.word { font-family: var(--ui); font-size: 15px; }
+  .key.go { grid-column: span 3; background: var(--accent); color: var(--on-accent); font-family: var(--ui); font-size: 16px; font-weight: 700; }
+  @media (hover: hover) and (pointer: fine) {
+    .key:hover { background: var(--key-hover); }
+    .key.go:hover, .btn:hover, .hard[aria-pressed="true"]:hover { background: var(--accent-hover); }
+    .hard[aria-pressed="false"]:hover { background: var(--key-hover); }
+  }
+  .result { margin-top: 24px; text-align: center; }
+  .result-label { font-size: 14px; color: var(--muted); }
+  .answer { font-family: var(--mono); font-size: 44px; font-weight: 500; line-height: 1.2; color: var(--accent-text); overflow-wrap: anywhere; }
+  .btn { display: block; width: 100%; height: 52px; margin-top: 14px; border-radius: 4px; background: var(--accent); color: var(--on-accent); font-weight: 700; }
+  .sharebox { font-family: var(--mono); font-size: 14px; line-height: 1.4; text-align: left; white-space: pre-wrap; overflow-wrap: anywhere;
+              background: var(--fill); border-radius: 4px; padding: 10px 14px; margin-top: 10px; }
+  .count { font-size: 14px; color: var(--muted); margin-top: 14px; }
+  .count span { font-family: var(--mono); color: var(--fg); }
+  .toastslot { position: fixed; z-index: 20; inset: calc(64px + env(safe-area-inset-top, 0px)) 16px auto; display: flex; justify-content: center; pointer-events: none; }
+  .toast { background: var(--toast-bg); color: var(--toast-fg); font-size: 14px; font-weight: 500; padding: 8px 12px; border-radius: 4px; }
+  dialog.sheet { border: 1px solid var(--line); margin: auto; padding: 22px 22px 18px; border-radius: 8px; background: var(--panel); color: var(--fg);
+                 width: min(400px, calc(100vw - 32px)); max-height: calc(100dvh - 16px); overflow-y: auto; box-shadow: 0 10px 30px var(--shadow); }
+  dialog.sheet::backdrop { background: var(--scrim); }
+  .sheet h2 { font-size: 20px; font-weight: 700; }
+  .sheet h3 { font-size: 14px; font-weight: 500; color: var(--muted); margin-top: 20px; }
+  .x { position: absolute; top: 14px; right: 14px; width: 34px; height: 34px; font-size: 20px; line-height: 1; color: var(--muted); border-radius: 4px; }
+  .figures { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+  .figure { text-align: center; min-width: 0; }
+  .figure b { display: block; font-family: var(--mono); font-size: 26px; font-weight: 500; line-height: 1.1; }
+  .figure span { display: block; font-size: 13px; line-height: 1.1; color: var(--muted); margin-top: 3px; }
+  .bars { display: grid; gap: 4px; margin-top: 8px; }
+  .bar { display: grid; grid-template-columns: 1em minmax(0, 1fr); align-items: center; column-gap: 8px; font-family: var(--mono); font-size: 14px; }
+  .bar-track { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .bar-fill { height: 20px; min-width: 4px; background: var(--key); border-radius: 0 4px 4px 0; }
+  .bar.today .bar-fill { background: var(--accent); }
+  .bar-v { color: var(--muted); }
+  .bar.today .bar-v { color: var(--fg); font-weight: 500; }
+  .erase { display: block; margin: 16px auto 0; font-size: 14px; color: var(--muted); text-decoration: underline; text-underline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <span class="no" id="no"></span>
+  <h1>Daily Integer</h1>
+  <div class="tools">
+    <button class="hard" id="btnHard" type="button" aria-label="Hard mode" aria-pressed="false">Hard</button>
+    <button class="icon" id="btnStats" type="button" aria-label="Stats">
+      <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><rect x="2" y="10" width="4" height="8" rx="1" fill="currentColor"/><rect x="8" y="2" width="4" height="16" rx="1" fill="currentColor"/><rect x="14" y="6" width="4" height="12" rx="1" fill="currentColor"/></svg>
+    </button>
+  </div>
+</header>
+<main class="wrap">
+  <div class="rows" id="rows" aria-label="Your guesses"></div>
+  <div class="keypad" id="keypad" aria-label="Number pad">
+    <button class="key" type="button" data-k="1">1</button>
+    <button class="key" type="button" data-k="2">2</button>
+    <button class="key" type="button" data-k="3">3</button>
+    <button class="key" type="button" data-k="4">4</button>
+    <button class="key" type="button" data-k="5">5</button>
+    <button class="key" type="button" data-k="6">6</button>
+    <button class="key" type="button" data-k="7">7</button>
+    <button class="key" type="button" data-k="8">8</button>
+    <button class="key" type="button" data-k="9">9</button>
+    <button class="key" type="button" data-k="0">0</button>
+    <button class="key" type="button" data-k="-" aria-label="Minus sign">−</button>
+    <button class="key word" type="button" data-k="del" aria-label="Delete">Del</button>
+    <button class="key go" type="button" data-k="go">Guess</button>
+  </div>
+  <section class="result" id="result" aria-label="Today's result" hidden></section>
+</main>
+<div class="sr" id="live" aria-live="polite"></div>
+<div class="toastslot"><div class="toast" id="toast" role="status" hidden></div></div>
+<dialog class="sheet" id="dlgStats" aria-labelledby="statsTitle">
+  <button class="x" type="button" data-close aria-label="Close">×</button>
+  <h2 id="statsTitle">Stats</h2>
+  <div id="statsBody"></div>
+  <button class="erase" id="btnErase" type="button">Reset</button>
+</dialog>
+<script>
+const SITE_URL = "";
+const EPOCH = Date.UTC(2026, 10, 4) / 864e5;
+const MAX_GUESSES = 6;
+const MAX_DIGITS = 24;
+const MODE_KEY = "daily_integer_mode";
+const KEYS = {
+  normal: { game: "daily_integer_game", stats: "daily_integer_stats" },
+  hard: { game: "daily_integer_hard_game", stats: "daily_integer_hard_stats" }
+};
+const $ = id => document.getElementById(id);
+let DAY, NO, ANSWER, game, answers, games, mode = "normal", buffer = "", rowEls = [];
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+  del(k) { try { localStorage.removeItem(k); } catch (e) {} }
+};
+let memStats = {};
+function loadStats() {
+  const s = store.get(KEYS[mode].stats) || memStats[mode];
+  return s && Array.isArray(s.dist) ? s : { played: 0, won: 0, dist: [0, 0, 0, 0, 0, 0], streak: 0, best: 0, lastWinDay: null };
+}
+function saveStats(s) { memStats[mode] = s; store.set(KEYS[mode].stats, s); }
+function saveGame() { store.set(KEYS[mode].game, game); }
+function dayIndex(d) { d = d || new Date(); return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 864e5; }
+function seedFrom(s) { let h = 2166136261; s = String(s); for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+function rng(seed) { let a = seed || 1; return function () { a = Math.imul(a ^ (a >>> 15), a | 1); a ^= a + Math.imul(a ^ (a >>> 7), a | 61); return ((a ^ (a >>> 14)) >>> 0) / 4294967296; }; }
+function rollInteger(seedText) {
+  const r = rng(seedFrom(seedText));
+  r();
+  const size = Math.floor(Math.pow(10, 0.6 + r() * 3.6));
+  return BigInt(r() < 0.5 ? -size : size);
+}
+const integerFor = day => rollInteger("daily-integer-" + day);
+function hardIntegerFor(day) {
+  const normal = integerFor(day);
+  for (let i = 0; ; i++) {
+    const n = rollInteger("daily-integer-hard-" + day + "-" + i);
+    if (n !== normal) return n;
+  }
+}
+const absB = b => (b < 0n ? -b : b);
+function analyse() {
+  return game.guesses.map(s => { const g = BigInt(s), d = absB(g - ANSWER); return { g, d, hit: d === 0n }; });
+}
+function status(info) {
+  info = info || analyse();
+  if (info.length && info[info.length - 1].hit) return "won";
+  return info.length >= MAX_GUESSES ? "lost" : "playing";
+}
+function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+const group = digits => digits.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+const fmt = b => (b < 0n ? "−" : "") + group(absB(b).toString());
+const fmtBuffer = s => (s[0] === "-" ? "−" : "") + group(s.replace("-", ""));
+function clue(x) {
+  if (mode === "normal") return `off by ${fmt(x.d)}`;
+  return x.hit ? "correct" : x.g > ANSWER ? "too high" : "too low";
+}
+function scoreText(info) { return `${info[info.length - 1].hit ? info.length : "X"}/${MAX_GUESSES}`; }
+function shareText() {
+  const info = analyse();
+  const lines = [`Daily Integer${mode === "hard" ? " Hard" : ""} No. ${NO} ${scoreText(info)}`].concat(info.map(x => clue(x)));
+  if (SITE_URL) lines.push(SITE_URL);
+  return lines.join("\n");
+}
+function drawRows(info, landIndex) {
+  const st = status(info);
+  rowEls.forEach((el, i) => {
+    const x = info[i];
+    if (x) {
+      const g = fmt(x.g), c = clue(x), sz = g.length + c.length > 25 ? " long" : "";
+      el.className = "row filled" + (sz ? " stack" : "") + (x.hit ? " hit" : "") + (landIndex === i ? " land" : "");
+      el.innerHTML = `<span class="row-g${sz}">${g}</span><span class="row-r${sz}">${c}</span>`;
+    } else if (i === info.length && st === "playing") {
+      el.className = "row active";
+      el.innerHTML = `<span class="row-g" id="activeG"></span>`;
+    } else {
+      el.className = "row";
+      el.innerHTML = "";
+    }
+  });
+  drawBuffer();
+}
+function drawBuffer() {
+  const el = $("activeG");
+  if (!el) return;
+  const t = buffer ? fmtBuffer(buffer) : "";
+  el.classList.toggle("long", t.length > 20);
+  el.innerHTML = esc(t) + `<i class="caret"></i>`;
+}
+function showResult(info) {
+  $("keypad").hidden = true;
+  const box = $("result");
+  box.innerHTML = `<p class="result-label">Today's ${mode === "hard" ? "hard " : ""}integer · ${scoreText(info)}</p>
+    <p class="answer">${fmt(ANSWER)}</p>
+    <button class="btn" id="btnShare" type="button">Copy results</button>
+    <div class="sharebox" id="sharebox" hidden>${esc(shareText())}</div>
+    <p class="count">Next integer in <span id="countdown"></span></p>`;
+  box.hidden = false;
+  tick();
+}
+function drawAll() {
+  const info = analyse(), st = status(info);
+  $("no").textContent = "No. " + NO;
+  drawRows(info);
+  $("keypad").hidden = st !== "playing";
+  $("result").hidden = true;
+  if (st !== "playing") showResult(info);
+}
+let toastTimer = null;
+function toast(msg) {
+  const t = $("toast");
+  t.textContent = msg; t.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.hidden = true; }, 1800);
+}
+function nudge() {
+  const row = rowEls[game.guesses.length];
+  if (!row) return;
+  row.classList.remove("nudge"); void row.offsetWidth; row.classList.add("nudge");
+}
+function press(k) {
+  if (k === "-") buffer = buffer[0] === "-" ? buffer.slice(1) : "-" + buffer;
+  else if (k === "del") buffer = buffer === "-" ? "" : buffer.slice(0, -1);
+  else {
+    const digits = buffer.replace("-", "");
+    if (digits === "0") buffer = buffer.replace("0", k);
+    else if (digits.length >= MAX_DIGITS) return;
+    else buffer += k;
+  }
+  drawBuffer();
+}
+function record(won, n) {
+  const s = loadStats();
+  s.played++;
+  if (won) {
+    s.won++; s.dist[n - 1]++;
+    s.streak = s.lastWinDay === DAY - 1 ? s.streak + 1 : 1;
+    s.lastWinDay = DAY; s.best = Math.max(s.best, s.streak);
+  } else s.streak = 0;
+  saveStats(s);
+}
+function submit() {
+  if (status() !== "playing") return;
+  if (!buffer || buffer === "-") { nudge(); return; }
+  const g = BigInt(buffer), s = g.toString();
+  buffer = "";
+  if (game.guesses.includes(s)) { drawBuffer(); nudge(); toast("Already guessed"); return; }
+  game.guesses.push(s);
+  saveGame();
+  const info = analyse(), n = info.length, last = info[n - 1], st = status(info);
+  drawRows(info, n - 1);
+  $("live").textContent = `${fmt(last.g)}: ${clue(last)}`;
+  if (st !== "playing") {
+    record(st === "won", n);
+    showResult(info);
+  }
+}
+function shownStreak(s) { return s.lastWinDay !== null && s.lastWinDay >= DAY - 1 ? s.streak : 0; }
+function openStats() {
+  const s = loadStats(), info = analyse();
+  const todayN = status(info) === "won" ? info.length : 0;
+  const top = Math.max(1, ...s.dist);
+  const figure = (v, l) => `<div class="figure"><b>${v}</b><span>${l}</span></div>`;
+  $("statsTitle").textContent = mode === "hard" ? "Hard mode stats" : "Stats";
+  const bars = s.dist.map((c, i) => `<div class="bar${todayN === i + 1 ? " today" : ""}"><span>${i + 1}</span><span class="bar-track"><span class="bar-fill" style="width:${Math.round(c / top * 86)}%"></span><span class="bar-v">${c}</span></span></div>`).join("");
+  $("statsBody").innerHTML = `<div class="figures">
+      ${figure(s.played, "Played")}${figure(s.played ? Math.round(s.won / s.played * 100) + "%" : "0%", "Won")}
+      ${figure(shownStreak(s), "Streak")}${figure(s.best, "Best streak")}
+    </div>
+    <h3>Guesses per win</h3>
+    <div class="bars">${bars}</div>`;
+  armErase(false);
+  $("dlgStats").showModal();
+}
+let eraseTimer = null;
+function armErase(on) {
+  const b = $("btnErase");
+  clearTimeout(eraseTimer);
+  b.dataset.armed = on ? "1" : "";
+  b.textContent = on ? "Tap again to reset" : "Reset";
+  if (on) eraseTimer = setTimeout(() => armErase(false), 3000);
+}
+function erase() {
+  if (!$("btnErase").dataset.armed) { armErase(true); return; }
+  store.del(KEYS[mode].game); store.del(KEYS[mode].stats); memStats[mode] = null;
+  games[mode] = { day: DAY, guesses: [] };
+  $("dlgStats").close();
+  useMode(mode);
+}
+async function copyShare() {
+  try { await navigator.clipboard.writeText(shareText()); toast("Copied"); }
+  catch (e) {
+    const box = $("sharebox");
+    box.hidden = false;
+    try {
+      const range = document.createRange(); range.selectNodeContents(box);
+      const sel = getSelection(); sel.removeAllRanges(); sel.addRange(range);
+      if (document.execCommand("copy")) toast("Copied");
+    } catch (e2) {}
+  }
+}
+function tick() {
+  if (dayIndex() !== DAY) { boot(); return; }
+  const el = $("countdown");
+  if (!el) return;
+  const now = new Date(), next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  const s = Math.max(0, Math.floor((next - now) / 1000));
+  el.textContent = [s / 3600, (s / 60) % 60, s % 60].map(v => String(Math.floor(v)).padStart(2, "0")).join(":");
+}
+function loadGame(m) {
+  const saved = store.get(KEYS[m].game);
+  const usable = saved && saved.day === DAY && Array.isArray(saved.guesses) && saved.guesses.every(s => /^-?\d+$/.test(s));
+  return usable ? saved : { day: DAY, guesses: [] };
+}
+function useMode(m) {
+  mode = m; game = games[m]; ANSWER = answers[m]; buffer = "";
+  store.set(MODE_KEY, m);
+  $("btnHard").setAttribute("aria-pressed", String(m === "hard"));
+  $("result").innerHTML = "";
+  drawAll();
+}
+function boot() {
+  DAY = dayIndex(); NO = DAY - EPOCH + 1;
+  answers = { normal: integerFor(DAY), hard: hardIntegerFor(DAY) };
+  games = { normal: loadGame("normal"), hard: loadGame("hard") };
+  useMode(mode);
+}
+for (let i = 0; i < MAX_GUESSES; i++) { const r = document.createElement("div"); r.className = "row"; $("rows").appendChild(r); rowEls.push(r); }
+document.addEventListener("click", e => {
+  const key = e.target.closest("[data-k]");
+  if (key) { if (key.dataset.k === "go") submit(); else press(key.dataset.k); return; }
+  if (e.target.closest("[data-close]") || e.target === $("dlgStats")) { $("dlgStats").close(); return; }
+  if (e.target.closest("#btnStats")) openStats();
+  else if (e.target.closest("#btnHard")) useMode(mode === "hard" ? "normal" : "hard");
+  else if (e.target.closest("#btnShare")) copyShare();
+  else if (e.target.closest("#btnErase")) erase();
+});
+document.addEventListener("keydown", e => {
+  if (e.metaKey || e.ctrlKey || e.altKey || document.querySelector("dialog[open]") || status() !== "playing") return;
+  const k = e.key;
+  if (/^[0-9]$/.test(k)) { e.preventDefault(); press(k); }
+  else if (k === "-" || k === "−") { e.preventDefault(); press("-"); }
+  else if (k === "Backspace") { e.preventDefault(); press("del"); }
+  else if (k === "Enter") {
+    const a = document.activeElement;
+    if (a && a.tagName === "BUTTON" && !a.closest("#keypad") && !buffer) return;
+    e.preventDefault(); submit();
+  }
+});
+if (store.get(MODE_KEY) === "hard") mode = "hard";
+boot();
+setInterval(tick, 1000);
+</script>
+</body>
+</html>
